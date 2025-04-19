@@ -5,6 +5,9 @@ import (
 
     "github.com/hashicorp/terraform-plugin-framework/resource"
     "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/validator"
+	"github.com/hashicorp/terraform-plugin-framework/validator/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/schema/stringdefault"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -31,11 +34,20 @@ func (r *treeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 		Attributes: map[string]schema.Attribute{
 			"idempotency_key": schema.StringAttribute{
 				MarkdownDescription: "Idempotency key",
-				Required:            true,
+				Optional:            true,
 			},
 			"quantity": schema.StringAttribute{
 				MarkdownDescription: "Quantity of tree to plant",
 				Required:            true,
+			},
+			"frequency": schema.StringAttribute{
+				MarkdownDescription: "How often to plant the trees. One of: `per_month`, `per_deployment`, `one_time`.",
+				Optional:            true,
+				Computed:            true, 
+				Default:             stringdefault.StaticString("one_time"),
+				Validators: []validator.String{
+					stringvalidator.OneOf("per_month", "per_deployment", "one_time"),
+				},
 			},
 		},
 	}
@@ -55,4 +67,5 @@ func (r *treeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 
 // Delete deletes the resource and removes the Terraform state on success.
 func (r *treeResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	// Do nothing
 }
