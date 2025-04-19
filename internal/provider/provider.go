@@ -29,7 +29,7 @@ type TreeappProvider struct {
 
 // TreeappProviderModel describes the provider data model.
 type TreeappProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+	Api_key types.String `tfsdk:"api_key"`
 }
 
 func (p *TreeappProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -40,9 +40,9 @@ func (p *TreeappProvider) Metadata(ctx context.Context, req provider.MetadataReq
 func (p *TreeappProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
-				Optional:            true,
+			"api_key": schema.StringAttribute{
+				MarkdownDescription: "API Key for TreeApp",
+				Required:            true,
 			},
 		},
 	}
@@ -57,10 +57,30 @@ func (p *TreeappProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
+    if config.Api_key.IsUnknown() {
+        resp.Diagnostics.AddAttributeError(
+            path.Root("api_key"),
+            "Unknown Treeapp API Key",
+            "The provider cannot create the Treeapp API client as there is an unknown configuration value for the Treeapp API key. ",
+        )
+    }
 
-	// Example client configuration for data sources and resources
+    if resp.Diagnostics.HasError() {
+        return
+    }
+
+    if Api_key == "" {
+        resp.Diagnostics.AddAttributeError(
+            path.Root("api_key"),
+            "Missing Treeapp API Key",
+            "The provider cannot create the Treeapp API client as there is a missing or empty value for the Treeapp API Key. If either is already set, ensure the value is not empty.",
+        )
+    }
+
+    if resp.Diagnostics.HasError() {
+        return
+    }
+
 	client := http.DefaultClient
 	resp.DataSourceData = client
 	resp.ResourceData = client
@@ -73,9 +93,10 @@ func (p *TreeappProvider) Resources(ctx context.Context) []func() resource.Resou
 } 
 
 func (p *TreeappProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		NewExampleDataSource,
-	}
+	return nil
+	// return []func() datasource.DataSource{
+	// 	NewExampleDataSource,
+	// }
 } 
 
 func New(version string) func() provider.Provider {

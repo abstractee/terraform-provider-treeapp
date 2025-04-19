@@ -27,7 +27,18 @@ func (r *treeResource) Metadata(_ context.Context, req resource.MetadataRequest,
 
 // Schema defines the schema for the resource.
 func (r *treeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-    resp.Schema = schema.Schema{}
+    resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"idempotency_key": schema.StringAttribute{
+				MarkdownDescription: "Idempotency key",
+				Required:            true,
+			},
+			"quantity": schema.StringAttribute{
+				MarkdownDescription: "Quantity of tree to plant",
+				Required:            true,
+			},
+		},
+	}
 }
 
 // Create creates the resource and sets the initial Terraform state.
