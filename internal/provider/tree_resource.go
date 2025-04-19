@@ -1,10 +1,17 @@
 package provider
 
 import (
-    "context"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
 
     "github.com/hashicorp/terraform-plugin-framework/resource"
     "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+	"github.com/hashicorp/terraform-plugin-framework/types" 
 	"github.com/hashicorp/terraform-plugin-framework/validator"
 	"github.com/hashicorp/terraform-plugin-framework/validator/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/schema/stringdefault"
@@ -196,5 +203,5 @@ func readAndSetTreeCount(ctx context.Context, data *treeResourceModel, apiKey st
 	}
 
 	totalTrees := summary.Trees + summary.Unbilled.Trees
-	data.Trees = types.Int64Value(totalTrees)
+	data.PlantedTrees = types.Int64Value(totalTrees)
 }
