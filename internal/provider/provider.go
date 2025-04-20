@@ -39,7 +39,7 @@ func (p *TreeappProvider) Schema(ctx context.Context, req provider.SchemaRequest
 		Attributes: map[string]schema.Attribute{
 			"api_key": schema.StringAttribute{
 				MarkdownDescription: "API Key for TreeApp",
-				Required:            true,
+				Optional:            true,
 			},
 		},
 	}
@@ -66,10 +66,10 @@ func (p *TreeappProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-    Api_key := os.Getenv("TREEAPP_API_KEY")
+    apiKey  := os.Getenv("TREEAPP_API_KEY")
 
     if !config.Api_key.IsNull() {
-        Api_key = config.Api_key.ValueString()
+        apiKey  = config.Api_key.ValueString()
     }
 
 	if config.Api_key.String() == "" {
@@ -84,7 +84,7 @@ func (p *TreeappProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	client := NewTreeappClient(Api_key)
+	client := NewTreeappClient(apiKey)
 	p.client = client
 	resp.DataSourceData = client
 	resp.ResourceData = client
