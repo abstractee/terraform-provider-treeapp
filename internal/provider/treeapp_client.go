@@ -106,10 +106,10 @@ func (c *TreeappClient) GetImpactSummary() (*ImpactSummary, error) {
 	return &summary, nil
 }
 
-func (c *TreeappClient) GetTotalNumberOfTrees() (*int64, error) {
+func (c *TreeappClient) GetTotalNumberOfTrees() (int64, error) {
 	req, err := http.NewRequest("GET", API_BASE+"/v1.1/impacts/summary", nil)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	req.Header.Set("Accept", "application/json")
@@ -118,19 +118,19 @@ func (c *TreeappClient) GetTotalNumberOfTrees() (*int64, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("failed to fetch data from Treeapp API")
+		return 0, errors.New("failed to fetch data from Treeapp API")
 	}
 
 	var data ImpactSummary
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	total := data.Trees + data.Unbilled.Trees
-	return &total, nil
+	return total, nil
 }
