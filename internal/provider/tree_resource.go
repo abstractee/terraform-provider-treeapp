@@ -8,58 +8,58 @@ import (
 	"strings"
 	"time"
 
-    "github.com/hashicorp/terraform-plugin-framework/resource"
-    "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
-	"github.com/hashicorp/terraform-plugin-framework/types" 
-	"github.com/hashicorp/terraform-plugin-framework/validator"
-	"github.com/hashicorp/terraform-plugin-framework/validator/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	// "github.com/hashicorp/terraform-plugin-framework/validator"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-    _ resource.Resource = &treeResource{}
+	_ resource.Resource = &treeResource{}
 )
 
 // NewtreeResource is a helper function to simplify the provider implementation.
 func NewTreeResource() resource.Resource {
-    return &treeResource{}
+	return &treeResource{}
 }
 
 // treeResource is the resource implementation.
-type treeResource struct{
-	client *http.DefaultClient
+type treeResource struct {
+	client *TreeappClient
 }
 
 type treeResourceModel struct {
 	IdempotencyKey types.String `tfsdk:"idempotency_key"`
-	Quantity       types.String `tfsdk:"quantity"`
+	Quantity       types.Int32  `tfsdk:"quantity"`
 	Frequency      types.String `tfsdk:"frequency"`
 	PlantedTrees   types.Int64  `tfsdk:"planted_trees"` // derived value
 }
 
 // Metadata returns the resource type name.
 func (r *treeResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-    resp.TypeName = req.ProviderTypeName + "_tree"
+	resp.TypeName = req.ProviderTypeName + "_tree"
 }
 
 // Schema defines the schema for the resource.
 func (r *treeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-    resp.Schema = schema.Schema{
+	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"idempotency_key": schema.StringAttribute{
 				MarkdownDescription: "Idempotency key",
 				Optional:            true,
 			},
-			"quantity": schema.StringAttribute{
+			"quantity": schema.Int32Attribute{
 				MarkdownDescription: "Quantity of tree to plant",
 				Required:            true,
 			},
 			"frequency": schema.StringAttribute{
 				MarkdownDescription: "How often to plant the trees. One of: `per_month`, `per_deployment`, `one_time`.",
 				Optional:            true,
-				Computed:            true, 
+				Computed:            true,
 				Default:             stringdefault.StaticString("one_time"),
 				Validators: []validator.String{
 					stringvalidator.OneOf("per_month", "per_deployment", "one_time"),
@@ -82,37 +82,16 @@ func (r *treeResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	apiKey := "123" // You may want to make this configurable
+	_, err := r.client.CreateUsageRecord(int(data.Quantity.ValueInt32()), "")
 
-	if data.IdempotencyKey.IsNull() {
-		data.IdempotencyKey = types.StringValue(fmt.Sprintf("tf-%d", time.Now().UnixNano()))
-	}
-
-	body := fmt.Sprintf(`{"quantity": %s}`, data.Quantity.ValueString())
-	request, err := http.NewRequest("POST", "https://api.thetreeapp.org/v1/usage-records", strings.NewReader(body))
 	if err != nil {
 		resp.Diagnostics.AddError("Request Error", err.Error())
 		return
 	}
-	request.Header.Add("Accept", "application/json")
-	request.Header.Add("Content-Type", "application/json")
-	request.Header.Add("X-Treeapp-Api-Key", apiKey)
-	request.Header.Add("Idempotency-Key", data.IdempotencyKey.ValueString())
-
-	client := &http.Client{}
-	res, err := client.Do(request)
-	if err != nil {
-		resp.Diagnostics.AddError("API Request Failed", err.Error())
-		return
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode >= 300 {
-		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Unexpected response code: %d", res.StatusCode))
-		return
-	}
 
 	// Then update state from summary
+	totalTrees, err := r.client.GetTotalNumberOfTrees()
+	data.PlantedTrees = types.Int64Value(totalTrees)
 	readAndSetTreeCount(ctx, &data, apiKey, resp)
 	resp.State.Set(ctx, &data)
 }
@@ -171,7 +150,6 @@ func (r *treeResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	// Do nothing
 }
 
-
 func readAndSetTreeCount(ctx context.Context, data *treeResourceModel, apiKey string, resp resource.Response) {
 	request, err := http.NewRequest("GET", "https://api.thetreeapp.org/v1.1/impacts/summary", nil)
 	if err != nil {
@@ -204,4 +182,24 @@ func readAndSetTreeCount(ctx context.Context, data *treeResourceModel, apiKey st
 
 	totalTrees := summary.Trees + summary.Unbilled.Trees
 	data.PlantedTrees = types.Int64Value(totalTrees)
+}
+
+// Configure adds the provider configured client to the resource.
+func (r *treeResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*TreeappClient)
+
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Data Source Configure Type",
+			fmt.Sprintf("Expected *TreeappClient.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+
+		return
+	}
+
+	r.client = client
 }
