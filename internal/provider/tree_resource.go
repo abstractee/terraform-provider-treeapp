@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
+    "github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	// "github.com/hashicorp/terraform-plugin-framework/validator"
 )
@@ -30,7 +31,7 @@ type treeResource struct {
 
 type treeResourceModel struct {
 	IdempotencyKey types.String `tfsdk:"idempotency_key"`
-	Quantity       types.Int32  `tfsdk:"quantity"`
+	Quantity       types.Int64  `tfsdk:"quantity"`
 	Frequency      types.String `tfsdk:"frequency"`
 	PlantedTrees   types.Map    `tfsdk:"planted_trees"` // map[string]int64
 }
@@ -48,7 +49,7 @@ func (r *treeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				MarkdownDescription: "Idempotency key",
 				Optional:            true,
 			},
-			"quantity": schema.Int32Attribute{
+			"quantity": schema.Int64Attribute{
 				MarkdownDescription: "Quantity of tree to plant",
 				Required:            true,
 			},
@@ -79,7 +80,7 @@ func (r *treeResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	_, err := r.client.CreateUsageRecord(int(data.Quantity.ValueInt32()), "")
+	_, err := r.client.CreateUsageRecord(int(data.Quantity.ValueInt64()), "")
 
 	if err != nil {
 		resp.Diagnostics.AddError("Request Error", err.Error())
@@ -92,6 +93,8 @@ func (r *treeResource) Create(ctx context.Context, req resource.CreateRequest, r
 		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
 		return
 	}
+	billed := stats["billed"]
+	unbilled := stats["unbilled"]
 	// Construct the planted_trees map
 	plantedTrees := map[string]attr.Value{
 		"billed":   types.Int64Value(billed),
@@ -119,9 +122,9 @@ func (r *treeResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	if err != nil {
 		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
 		return
-	}
-	billed := stats.Billed
-	unbilled := stats.Unbilled
+	} 
+	billed := stats["billed"]
+	unbilled := stats["unbilled"]
 
 	// Construct the planted_trees map
 	plantedTrees := map[string]attr.Value{
@@ -163,7 +166,7 @@ func (r *treeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	_, err := r.client.CreateUsageRecord(int(data.Quantity.ValueInt32()), "")
+	_, err := r.client.CreateUsageRecord(int(data.Quantity.ValueInt64()), "")
 
 	if err != nil {
 		resp.Diagnostics.AddError("Request Error", err.Error())
@@ -176,6 +179,9 @@ func (r *treeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
 		return
 	}
+	billed := stats["billed"]
+	unbilled := stats["unbilled"]
+
 	// Construct the planted_trees map
 	plantedTrees := map[string]attr.Value{
 		"billed":   types.Int64Value(billed),
