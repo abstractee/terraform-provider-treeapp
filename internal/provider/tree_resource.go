@@ -148,6 +148,7 @@ func (r *treeResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	case "per_deployment":
 		// Do not update quantity
+		data.Quantity =  types.Int64Value(0)
 	}
 
 	// Set final state
