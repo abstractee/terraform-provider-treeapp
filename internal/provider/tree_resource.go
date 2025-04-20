@@ -32,7 +32,7 @@ type treeResourceModel struct {
 	IdempotencyKey types.String `tfsdk:"idempotency_key"`
 	Quantity       types.Int32  `tfsdk:"quantity"`
 	Frequency      types.String `tfsdk:"frequency"`
-	PlantedTrees   types.Int64  `tfsdk:"planted_trees"` // derived value
+	PlantedTrees   types.Map    `tfsdk:"planted_trees"` // map[string]int64
 }
 
 // Metadata returns the resource type name.
@@ -63,6 +63,7 @@ func (r *treeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"planted_trees": schema.MapAttribute{
 				MarkdownDescription: "Trees planted so far (billed, unbilled).",
+				ElementType:         types.Int64Type,
 				Computed:            true,
 			},
 		},
@@ -86,12 +87,21 @@ func (r *treeResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	// Then update state from summary
-	totalTrees, err := r.client.GetTotalNumberOfTrees()
+	stats, err := r.client.GetPlantedTreeStats()
 	if err != nil {
-		resp.Diagnostics.AddError("GetTotalNumberOfTrees: Request Error", err.Error())
+		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
 		return
 	}
-	data.PlantedTrees = types.Int64Value(totalTrees)
+	// Construct the planted_trees map
+	plantedTrees := map[string]attr.Value{
+		"billed":   types.Int64Value(billed),
+		"unbilled": types.Int64Value(unbilled),
+	}
+	data.PlantedTrees, diags = types.MapValue(types.Int64Type, plantedTrees)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.State.Set(ctx, &data)
 }
 
@@ -105,7 +115,7 @@ func (r *treeResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	}
 
 	// Retrieve tree stats (billed/unbilled) from external system
-	stats, err := r.client.GetPlantedTreeStats() // returns (billed, unbilled int64, err)
+	stats, err := r.client.GetPlantedTreeStats() 
 	if err != nil {
 		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
 		return
@@ -160,12 +170,22 @@ func (r *treeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	totalTrees, err := r.client.GetTotalNumberOfTrees()
+	// Then update state from summary
+	stats, err := r.client.GetPlantedTreeStats()
 	if err != nil {
-		resp.Diagnostics.AddError("GetTotalNumberOfTrees: Request Error", err.Error())
+		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
 		return
 	}
-	data.PlantedTrees = types.Int64Value(totalTrees)
+	// Construct the planted_trees map
+	plantedTrees := map[string]attr.Value{
+		"billed":   types.Int64Value(billed),
+		"unbilled": types.Int64Value(unbilled),
+	}
+	data.PlantedTrees, diags = types.MapValue(types.Int64Type, plantedTrees)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	resp.State.Set(ctx, &data)
 }
 
