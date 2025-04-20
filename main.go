@@ -8,8 +8,9 @@ import (
 	"flag"
 	"log"
 
+	"terraform-provider-treeapp/internal/provider"
+
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-    "treeapp-provider/internal/provider"
 )
 
 var (
@@ -28,7 +29,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "hashicorp.com/treeapp",
+		Address: "hashicorp.com/test/treeapp",
 		Debug:   debug,
 	}
 

@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     treeapp = {
-      source = "hashicorp.com/treeapp"
+      source = "hashicorp.com/test/treeapp"
     }
   }
 }
