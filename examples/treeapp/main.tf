@@ -6,7 +6,7 @@ terraform {
   }
 }
 
-resource "treeapp" "myforest" {
+resource "treeapp_tree" "myforest" {
   quantity  = 10
   frequency = "one_time"
 }
