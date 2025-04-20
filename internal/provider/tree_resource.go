@@ -61,8 +61,8 @@ func (r *treeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 					stringvalidator.OneOf("per_month", "per_deployment", "one_time"),
 				},
 			},
-			"planted_trees": schema.Int64Attribute{
-				MarkdownDescription: "Total trees planted so far (billed + unbilled).",
+			"planted_trees": schema.MapAttribute{
+				MarkdownDescription: "Trees planted so far (billed, unbilled).",
 				Computed:            true,
 			},
 		},
@@ -98,16 +98,50 @@ func (r *treeResource) Create(ctx context.Context, req resource.CreateRequest, r
 // Read refreshes the Terraform state with the latest data.
 func (r *treeResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var data treeResourceModel
-	req.State.Get(ctx, &data)
-
-	totalTrees, err := r.client.GetTotalNumberOfTrees()
-	if err != nil {
-		resp.Diagnostics.AddError("GetTotalNumberOfTrees: Request Error", err.Error())
+	diags := req.State.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
-	data.PlantedTrees = types.Int64Value(totalTrees)
-	resp.State.Set(ctx, &data)
+
+	// Retrieve tree stats (billed/unbilled) from external system
+	stats, err := r.client.GetPlantedTreeStats() // returns (billed, unbilled int64, err)
+	if err != nil {
+		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
+		return
+	}
+	billed := stats.Billed
+	unbilled := stats.Unbilled
+
+	// Construct the planted_trees map
+	plantedTrees := map[string]attr.Value{
+		"billed":   types.Int64Value(billed),
+		"unbilled": types.Int64Value(unbilled),
+	}
+	data.PlantedTrees, diags = types.MapValue(types.Int64Type, plantedTrees)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Reconcile quantity if needed
+	switch data.Frequency.ValueString() {
+	case "one_time":
+		total := billed + unbilled
+		data.Quantity = types.Int64Value(total)
+
+	case "per_month":
+		data.Quantity = types.Int64Value(unbilled)
+
+	case "per_deployment":
+		// Do not update quantity
+	}
+
+	// Set final state
+	diags = resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
 }
+
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *treeResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
