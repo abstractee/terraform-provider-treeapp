@@ -30,10 +30,10 @@ type treeResource struct {
 }
 
 type treeResourceModel struct {
-	IdempotencyKey types.String `tfsdk:"idempotency_key"`
-	Quantity       types.Int64  `tfsdk:"quantity"`
-	Frequency      types.String `tfsdk:"frequency"`
-	PlantedTrees   types.Map    `tfsdk:"planted_trees"` // map[string]int64
+	IdempotencyKey    types.String `tfsdk:"idempotency_key"`
+	Quantity          types.Int64  `tfsdk:"quantity"` 
+	Frequency         types.String `tfsdk:"frequency"`
+	PlantedTrees      types.Map    `tfsdk:"planted_trees"` // map[string]int64
 }
 
 // Metadata returns the resource type name.
@@ -50,9 +50,9 @@ func (r *treeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:            true,
 			},
 			"quantity": schema.Int64Attribute{
-				MarkdownDescription: "Quantity of tree to plant",
+				MarkdownDescription: "Desired quantity of trees to plant",
 				Required:            true,
-			},
+			}, 
 			"frequency": schema.StringAttribute{
 				MarkdownDescription: "How often to plant the trees. One of: `per_month`, `per_deployment`, `one_time`.",
 				Optional:            true,
@@ -80,14 +80,7 @@ func (r *treeResource) Create(ctx context.Context, req resource.CreateRequest, r
 		return
 	}
 
-	_, err := r.client.CreateUsageRecord(int(data.Quantity.ValueInt64()), "")
-
-	if err != nil {
-		resp.Diagnostics.AddError("Request Error", err.Error())
-		return
-	}
-
-	// Then update state from summary
+	// get state from summary
 	stats, err := r.client.GetPlantedTreeStats()
 	if err != nil {
 		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
@@ -95,6 +88,40 @@ func (r *treeResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 	billed := stats["billed"]
 	unbilled := stats["unbilled"]
+
+	// Reconcile quantity if needed
+	quantity := 0
+	switch data.Frequency.ValueString() {
+		case "one_time":
+			total := billed + unbilled
+			if total < data.Quantity.ValueInt64() {
+				quantity = int(data.Quantity.ValueInt64() - total)
+			}
+		
+		case "per_month":
+			if unbilled < data.Quantity.ValueInt64() {
+				quantity = int(data.Quantity.ValueInt64() - unbilled)
+			}
+		
+		case "per_deployment":
+			quantity  = int(data.Quantity.ValueInt64() )
+	}
+
+	_, err = r.client.CreateUsageRecord(int(quantity), "")
+
+	if err != nil {
+		resp.Diagnostics.AddError("Request Error", err.Error())
+		return
+	}
+
+	// Then update state from summary
+	stats, err = r.client.GetPlantedTreeStats()
+	if err != nil {
+		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
+		return
+	}
+	billed = stats["billed"]
+	unbilled = stats["unbilled"]
 	// Construct the planted_trees map
 	plantedTrees := map[string]attr.Value{
 		"billed":   types.Int64Value(billed),
@@ -139,16 +166,19 @@ func (r *treeResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 	// Reconcile quantity if needed
 	switch data.Frequency.ValueString() {
-	case "one_time":
-		total := billed + unbilled
-		data.Quantity = types.Int64Value(total)
-
-	case "per_month":
-		data.Quantity = types.Int64Value(unbilled)
-
-	case "per_deployment":
-		// Do not update quantity
-		data.Quantity =  types.Int64Value(0)
+		case "one_time":
+			total := billed + unbilled
+			if total < data.Quantity.ValueInt64() {
+				data.Quantity = types.Int64Value(data.Quantity.ValueInt64() - total)
+			}
+		
+		case "per_month":
+			if unbilled < data.Quantity.ValueInt64() {
+				data.Quantity = types.Int64Value(data.Quantity.ValueInt64() - unbilled)
+			}
+		
+		case "per_deployment":
+			// Do not update quantity
 	}
 
 	// Set final state
@@ -167,14 +197,7 @@ func (r *treeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		return
 	}
 
-	_, err := r.client.CreateUsageRecord(int(data.Quantity.ValueInt64()), "")
-
-	if err != nil {
-		resp.Diagnostics.AddError("Request Error", err.Error())
-		return
-	}
-
-	// Then update state from summary
+	// get state from summary
 	stats, err := r.client.GetPlantedTreeStats()
 	if err != nil {
 		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
@@ -182,6 +205,40 @@ func (r *treeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 	billed := stats["billed"]
 	unbilled := stats["unbilled"]
+
+	// Reconcile quantity if needed
+	quantity := 0
+	switch data.Frequency.ValueString() {
+		case "one_time":
+			total := billed + unbilled
+			if total < data.Quantity.ValueInt64() {
+				quantity = int(data.Quantity.ValueInt64() - total)
+			}
+		
+		case "per_month":
+			if unbilled < data.Quantity.ValueInt64() {
+				quantity = int(data.Quantity.ValueInt64() - unbilled)
+			}
+		
+		case "per_deployment":
+			quantity  = int(data.Quantity.ValueInt64() )
+	}
+
+	_, err = r.client.CreateUsageRecord(int(quantity), "")
+
+	if err != nil {
+		resp.Diagnostics.AddError("Request Error", err.Error())
+		return
+	}
+
+	// Then update state from summary
+	stats, err = r.client.GetPlantedTreeStats()
+	if err != nil {
+		resp.Diagnostics.AddError("GetPlantedTreeStats: Request Error", err.Error())
+		return
+	}
+	billed = stats["billed"]
+	unbilled = stats["unbilled"]
 
 	// Construct the planted_trees map
 	plantedTrees := map[string]attr.Value{
