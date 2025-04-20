@@ -6,7 +6,13 @@ terraform {
   }
 }
 
+provider "treeapp" {
+  api_key = var.treeapp_api_key
+}
+
+variable "treeapp_api_key" {}
+
 resource "treeapp_tree" "myforest" {
-  quantity  = 10
-  frequency = "per_deployment"
+  quantity  = 4
+  frequency = "per_month"
 }

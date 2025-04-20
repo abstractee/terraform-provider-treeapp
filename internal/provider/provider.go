@@ -5,6 +5,7 @@ package provider
 
 import (
 	"context"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -65,6 +66,12 @@ func (p *TreeappProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
+    Api_key := os.Getenv("TREEAPP_API_KEY")
+
+    if !config.Api_key.IsNull() {
+        Api_key = config.Api_key.ValueString()
+    }
+
 	if config.Api_key.String() == "" {
 		resp.Diagnostics.AddAttributeError(
 			path.Root("api_key"),
@@ -77,7 +84,7 @@ func (p *TreeappProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	client := NewTreeappClient(config.Api_key.ValueString())
+	client := NewTreeappClient(Api_key)
 	p.client = client
 	resp.DataSourceData = client
 	resp.ResourceData = client
