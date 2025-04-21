@@ -44,7 +44,7 @@ terraform {
 }
 ```
 
-# 🔐 Authentication
+### 🔐 Authentication
 
 You will need a TreeApp API key to authenticate. Pass it in via the provider block : 
 ```hcl
@@ -55,7 +55,7 @@ provider "treeapp" {
 variable "treeapp_api_key" {}
 
 ```
-# 🌳 Usage Example
+### 🌳 Usage Example
 
 Here's a minimal example that plants 6 trees as a one-time action:
 ```hcl
@@ -65,7 +65,7 @@ resource "treeapp_tree" "myforest" {
 }
 ```
 
-# Parameters
+### Parameters
 | Name     | Type   | Description                                        |
 |----------|--------|----------------------------------------------------|
 | quantity | int    | Number of trees to plant                           |
