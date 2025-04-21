@@ -42,3 +42,31 @@ terraform {
     }
   }
 }
+```
+
+# 🔐 Authentication
+
+You will need a TreeApp API key to authenticate. Pass it in via the provider block : 
+```hcl
+provider "treeapp" {
+  api_key = var.treeapp_api_key
+}
+
+variable "treeapp_api_key" {}
+
+```
+# 🌳 Usage Example
+
+Here's a minimal example that plants 6 trees as a one-time action:
+```hcl
+resource "treeapp_tree" "myforest" {
+  quantity  = 6
+  frequency = "one_time"
+}
+```
+
+# Parameters
+| Name     | Type   | Description                                        |
+|----------|--------|----------------------------------------------------|
+| quantity | int    | Number of trees to plant                           |
+| frequency| string | How often to plant: one_time, per_deployment, per_month |
